@@ -1,0 +1,394 @@
+{
+  "name": "RAG Document Query System with Vector Search and LLM Response",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "130bc9fc-aeae-4422-a7b3-9ed409fa856a",
+      "name": "Receive Query or Document",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        504
+      ],
+      "webhookId": "b9c230a0-f431-4c1b-88b9-a124f92450b8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.body.query }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2312650b-7ef5-4bf9-82b4-b26eb0c32a64",
+      "name": "Route: Ingest or Query",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        504
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {}
+      },
+      "id": "4bab5c66-d2b6-4b92-a532-5cfb39f87774",
+      "name": "Load Documents",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        704,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 500,
+        "chunkOverlap": 100
+      },
+      "id": "18862c76-d535-47ab-83c6-c37f9ac47d46",
+      "name": "Split into Chunks",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterTokenSplitter",
+      "typeVersion": 1,
+      "position": [
+        784,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "20948912-0063-4697-ba88-3622fd90179d",
+      "name": "Generate Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        992,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        }
+      },
+      "id": "7d0b0e44-7d6c-4823-aca9-92c5273b38c9",
+      "name": "Store Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "message",
+              "value": "Documents ingested and embeddings stored successfully",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84bc7aa0-6be3-4024-9fb7-9277b056e792",
+      "name": "Ingestion Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1400,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Searches the document knowledge base for relevant context to answer the user question",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "topK": 5
+      },
+      "id": "13f1ee14-df2a-43ce-8c09-7c5429c1d8fe",
+      "name": "Retrieve Context",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "52eed81a-f463-411d-a5c1-91f49d3a2591",
+      "name": "Query Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.body.query }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a helpful assistant that answers questions based ONLY on the provided context from the knowledge base. If the context does not contain enough information to answer the question, say so explicitly. Do not make up information or use knowledge outside the provided context."
+        }
+      },
+      "id": "f2b1b474-daac-4411-8f50-19791e5e6e07",
+      "name": "Answer Question",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1416,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "5bf69db5-9aa6-4e3b-bbc7-12d24e206994",
+      "name": "OpenAI GPT Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"answer\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"The answer to the user's question\"\n\t\t},\n\t\t\"sources\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t},\n\t\t\t\"description\": \"The document chunks used\"\n\t\t},\n\t\t\"confidence\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"enum\": [\"high\", \"medium\", \"low\"],\n\t\t\t\"description\": \"Confidence level based on context relevance\"\n\t\t}\n\t},\n\t\"required\": [\"answer\", \"sources\", \"confidence\"]\n}"
+      },
+      "id": "04509ac9-5e9a-410f-9578-4c8e10fddc43",
+      "name": "Structure JSON Output",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f81b7297-c332-4fa9-8a05-b52bda226883",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1824,
+        504
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Query or Document": {
+      "main": [
+        [
+          {
+            "node": "Route: Ingest or Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split into Chunks": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Load Documents",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Ingest or Query": {
+      "main": [
+        [
+          {
+            "node": "Answer Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Documents": {
+      "ai_document": [
+        [
+          {
+            "node": "Store Embeddings",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Store Embeddings",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Retrieve Context",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Context": {
+      "ai_tool": [
+        [
+          {
+            "node": "Answer Question",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Answer Question",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure JSON Output": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Answer Question",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Question": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Success Response": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6f6df368-e1c8-4656-b490-b92e4413f296",
+  "meta": {
+    "instanceId": "2784a8b8b6d70df065cc185ef238cef76e08801d9b49d6dfd6a61cd2379d1e93"
+  },
+  "id": "yuEfpiiNRwmdUXba",
+  "tags": []
+}
